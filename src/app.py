@@ -1,9 +1,13 @@
 import streamlit as st
+
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_community.document_loaders import WebBaseLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain_openai import OpenAIEmbeddings
+from dotenv import load_dotenv
+
+load_dotenv()
 
 def get_response(user_input):
     return "I don't know"
@@ -40,7 +44,7 @@ if website_url is None or website_url == "":
     st.info("Please enter a website URL")
 else:
     document_chunks = get_vector_store(website_url)
-    
+
     # user input
     user_query = st.chat_input("Type your message here...")
     if user_query is not None and user_query != "":
