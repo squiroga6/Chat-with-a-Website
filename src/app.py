@@ -18,9 +18,7 @@ from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from dotenv import load_dotenv
 load_dotenv()
 
-def get_response(user_input):
-    return "I don't know"
-
+# pipeline
 def get_vector_store_from_url(url):
     """
     Get text in document form
@@ -65,8 +63,16 @@ def get_conversational_rag_chain(retriever_chain):
         ("user","{input}")
     ])
     stuff_documents_chain = create_stuff_documents_chain(llm,prompt)
-    return create_retrieval_chain(retreiver_chain, stuff_documents_chain)
+    return create_retrieval_chain(retriever_chain, stuff_documents_chain)
 
+def get_response(user_input):
+    retriever_chain = get_context_retriever_chain(st.session_state.vector_store)
+    conversation_rag_chain = get_conversational_rag_chain(retriever_chain)
+    response = conversation_rag_chain.invoke({
+        "chat_history":st.session_state.chat_history,
+        "input":user_input
+    })
+    return response['answer']
 
 # app config
 st.set_page_config(page_title = "Chat with websites!",page_icon ="🤖")
@@ -80,29 +86,24 @@ with st.sidebar:
 if website_url is None or website_url == "":
     st.info("Please enter a website URL")
 else:
+
     # session state
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = [
             AIMessage(content = "Hello, I am a bot, how can I help you?")
             ]
+    
+    # create conversation chain
     if "vector_store" not in st.session_state:
         st.session_state.vector_store = get_vector_store_from_url(website_url)
-    
-    retreiver_chain = get_context_retriever_chain(st.session_state.vector_store)
-
-    conversation_rag_chain = get_conversational_rag_chain(retreiver_chain)
-    
+        
     # user input
     user_query = st.chat_input("Type your message here...")
+    
     if user_query is not None and user_query != "":
-        # response = get_response(user_input=user_query)
-        response = conversation_rag_chain.invoke({
-            "chat_history":st.session_state.chat_history,
-            "input":user_query
-        })
-        st.write(response)
-        # st.session_state.chat_history.append(HumanMessage(content=user_query))
-        # st.session_state.chat_history.append(AIMessage(content=response))
+        response = get_response(user_input=user_query)                
+        st.session_state.chat_history.append(HumanMessage(content=user_query))
+        st.session_state.chat_history.append(AIMessage(content=response))
     
     # converstaion
     for message in st.session_state.chat_history:
