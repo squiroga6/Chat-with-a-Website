@@ -23,34 +23,44 @@ def get_vector_store_from_url(url):
     """
     Get text in document form
     """
+
+    # get document
     loader = WebBaseLoader(url)
     document = loader.load()
     
-    # split document into chunks
+    # initialize text splitter
     text_splitter = RecursiveCharacterTextSplitter()
     
+    # split document into chunks
     document_chunks = text_splitter.split_documents(document)
-    # creatre vector store
     
+    # creatre vector store
     vector_store = Chroma.from_documents(document_chunks, OpenAIEmbeddings())
       
     return vector_store
 
 def get_context_retriever_chain(vector_store):
-    llm = ChatOpenAI()
+    """
+    Create all relevant information from prompt
+    """
     
+    # initialize llm
+    llm = ChatOpenAI()    
+
+    # create retriever (allows to retrieve relevant text)
     retreiver = vector_store.as_retriever()
     
-    # populate prompt with all chat history
+    # populate prompt with all chat history: takes an array of messages
     prompt = ChatPromptTemplate.from_messages([
+        # add chat history if exists
         MessagesPlaceholder(variable_name="chat_history"),
+        # pass a human message as a tuple : type, prompt
         ("user","{input}"),
+        # add prompt
         ("user", "Given the above conversation, generate a search query to look up in order to get information relevant to the conversation")
     ])
     
-    retreiver_chain = create_history_aware_retriever(llm,retreiver,prompt)
-    
-    return retreiver_chain
+    return create_history_aware_retriever(llm,retreiver,prompt)
 
 def get_conversational_rag_chain(retriever_chain):
     """
@@ -66,8 +76,10 @@ def get_conversational_rag_chain(retriever_chain):
     return create_retrieval_chain(retriever_chain, stuff_documents_chain)
 
 def get_response(user_input):
+
     retriever_chain = get_context_retriever_chain(st.session_state.vector_store)
     conversation_rag_chain = get_conversational_rag_chain(retriever_chain)
+    
     response = conversation_rag_chain.invoke({
         "chat_history":st.session_state.chat_history,
         "input":user_input
